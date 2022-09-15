@@ -1,0 +1,17 @@
+apiVersion: skaffold/v2beta26
+kind: Config
+metadata:
+  name: skaffold-deploy-profiles
+profiles:
+  - name: learn
+    deploy:
+      helm:
+        releases:
+        - name: learn
+          namespace: robot-shop-learn
+          chartPath: helm
+          recreatePods: false
+          valuesFiles:
+            - helm/values.yaml
+          imageStrategy:
+            helm: {}

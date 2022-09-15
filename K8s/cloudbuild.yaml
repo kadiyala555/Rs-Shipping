@@ -1,0 +1,34 @@
+steps:
+- name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
+  args: ['app','deploy']
+  env:
+  - 'CLOUDSDK_COMPUTE_REGION=us-central1-c'
+  - 'CLOUDSDK_CONTAINER_CLUSTER=robot-shop-cluster'
+
+
+- name: 'gcr.io/cloud-builders/kubectl'
+  id: CreateConfig
+  args:
+  - 'create'
+  - 'configmap'
+  - 'current-date'
+  - '--from-literal=DATE_NOW=${_CUR_DATE}'
+  - '-n'
+  - 'robot-shop-learn'
+  env:
+  - 'CLOUDSDK_COMPUTE_REGION=us-central1-c'
+  - 'CLOUDSDK_CONTAINER_CLUSTER=robot-shop-cluster'
+
+
+- name: 'gcr.io/cloud-builders/kubectl'
+  id: Deploy
+  args:
+  - 'apply'
+  - '-f'
+  - 'docker-compose.yaml'
+  - '-n'
+  - 'robot-shop'
+  env:
+  - 'CLOUDSDK_COMPUTE_REGION=us-central1-c'
+  - 'CLOUDSDK_CONTAINER_CLUSTER=robot-shop-cluster'
