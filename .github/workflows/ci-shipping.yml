@@ -1,0 +1,73 @@
+name: Ci-pipeline, Docker image, push to GAR.
+on:
+  push:
+    branches: [ dev-branch-1 ]
+    # - '.github/workflows/*yaml'
+    paths-ignore:
+      - '**.md'
+      - 'readme/**'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+           
+  workflow_dispatch:
+
+env:
+  GAR_INFO: northamerica-northeast2-docker.pkg.dev/thedevproj/tdpartifs
+  SHIPPING_APP_NAME: rs-shipping
+
+jobs:
+
+  build-shipping:
+    name: Building SHIPPING IMAGE
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+                       
+      - name: Setup GCP Service Account
+        uses: "google-github-actions/auth@v0"
+        with:
+          credentials_json: "${{ secrets.GOOGLE_CREDENTIALS }}"
+      
+      - name: Set up Cloud SDK
+        uses: 'google-github-actions/setup-gcloud@v0'
+      
+      # Configure docker to use the gcloud command-line tool as a credential helper
+      - name: Setup Docker
+        run: |
+          gcloud auth configure-docker northamerica-northeast2-docker.pkg.dev
+      - name: Run Wiremock server
+        #uses: docker://wiremock/wiremock:2.33.1 
+        #with:
+        #  args: >-
+        #    --publish: 9999:8080
+        #    --name: wiremock
+        #    --rm
+        #    -it
+
+       
+        run: |
+          cd shipping
+          docker run -d -p 8080:8080 -v $PWD/src/test/resources:/home/wiremock --name wiremock wiremock/wiremock:2.33.1
+          docker container inspect wiremock
+          echo `docker container port wiremock`
+          mvn test
+    # curl -LIs http://localhost:8080
+      - name: Publish Wiremock Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v1
+        if: always()
+        with:
+          files: "shipping/target/surefire-reports/junitreports/*.xml"
+       
+      - name: Build-and-push-to-GAR
+        run: |
+          echo `pwd`
+          export TAG=`cat shipping/VERSION.txt`
+          echo $TAG
+          echo "$GAR_INFO"/"$SHIPPING_APP_NAME":"$TAG"
+          docker build -t "$GAR_INFO"/"$SHIPPING_APP_NAME":"$TAG" shipping/
+          gcloud info
+          docker push "$GAR_INFO"/"$SHIPPING_APP_NAME":"$TAG"
